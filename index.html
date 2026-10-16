@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TrafficWatch SG</title>
+  <meta name="description" content="Live Singapore traffic cameras, floating over the map.">
+  <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#07090D" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TrafficWatch">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://api.data.gov.sg" crossorigin>
+  <link rel="preconnect" href="https://images.data.gov.sg">
+  <link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    /* Critical intro styles — painted before app.css arrives. */
+    html,body{margin:0;height:100%;background:#F4F1EA}
+    @media (prefers-color-scheme: dark){html,body{background:#07090D}}
+    #intro{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;background:inherit;color:#0A6CFF}
+    @media (prefers-color-scheme: dark){#intro{color:#FFB547}}
+    #intro svg{width:84px;height:84px;overflow:visible}
+    #intro .lens{stroke-dasharray:101;stroke-dashoffset:101;animation:lens-focus .9s cubic-bezier(.2,.8,.2,1) .1s forwards}
+    #intro .led{transform-origin:center;transform-box:fill-box;transform:scale(0);animation:led-on .3s cubic-bezier(.34,1.56,.64,1) .75s forwards}
+    @keyframes lens-focus{to{stroke-dashoffset:0}}
+    @keyframes led-on{to{transform:scale(1)}}
+    #intro.skip{display:none}
+  </style>
+</head>
+<body>
+  <div id="intro" aria-hidden="true">
+    <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round">
+      <rect x="6" y="12" width="52" height="40" rx="11"/>
+      <circle class="lens" cx="32" cy="32" r="12" transform="rotate(-90 32 32)"/>
+      <circle class="led" cx="48" cy="21" r="3.2" fill="currentColor" stroke="none"/>
+    </svg>
+  </div>
+  <script>
+    try { if (sessionStorage.getItem('tw:intro')) document.getElementById('intro').classList.add('skip'); } catch (e) {}
+  </script>
+
+  <main id="stage">
+    <div id="map" aria-label="Map of Singapore traffic cameras"></div>
+    <section id="wall" aria-label="All cameras" hidden></section>
+  </main>
+
+  <header id="hud">
+    <button class="hud-capsule" id="hud-btn" aria-expanded="false" aria-controls="hud-panel">
+      <svg class="hud-mark" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" aria-hidden="true">
+        <rect x="6" y="12" width="52" height="40" rx="11"/><circle cx="32" cy="32" r="11"/><circle cx="48" cy="21" r="3.5" fill="currentColor" stroke="none"/>
+      </svg>
+      <span class="hud-title">TrafficWatch</span>
+      <span class="hud-status" id="hud-status" data-state="loading" aria-live="polite">
+        <i class="hud-led"></i><span class="hud-text">Connecting</span>
+      </span>
+    </button>
+    <div class="hud-panel" id="hud-panel" hidden>
+      <p class="hud-panel-line" id="hud-detail">Waiting for first update…</p>
+      <p class="hud-panel-line muted">New frames are checked every 30s while the app is open. Checking stops when it's in the background, to save battery.</p>
+      <p class="hud-panel-line muted">Traffic images © <a href="https://data.gov.sg/datasets/d_6cdb6b405b25aaaacbaf7689bcc6fae0/view" target="_blank" rel="noopener">LTA via data.gov.sg</a> (Singapore Open Data Licence). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+    </div>
+  </header>
+
+  <nav id="controls" aria-label="Map controls">
+    <button class="ctl ctl-zoom" id="ctl-zoom-in" aria-label="Zoom in">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="ctl ctl-zoom" id="ctl-zoom-out" aria-label="Zoom out">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+    </button>
+    <button class="ctl" id="ctl-locate" aria-label="Show my location">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    </button>
+    <button class="ctl" id="ctl-fit" aria-label="Show all cameras">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
+    </button>
+    <button class="ctl ctl-primary" id="ctl-wall" aria-label="Show camera wall" aria-pressed="false">
+      <svg class="i-wall" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="7.5" height="6" rx="1.5"/><rect x="13" y="4.5" width="7.5" height="6" rx="1.5"/><rect x="3.5" y="13.5" width="7.5" height="6" rx="1.5"/><rect x="13" y="13.5" width="7.5" height="6" rx="1.5"/></svg>
+      <svg class="i-map" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/></svg>
+    </button>
+  </nav>
+
+  <div id="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" hidden>
+    <div class="viewer-backdrop"></div>
+    <div class="viewer-stage">
+      <div class="viewer-top">
+        <button class="viewer-btn" id="viewer-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <div class="viewer-count" id="viewer-count"></div>
+        <a class="viewer-btn" id="viewer-raw" target="_blank" rel="noopener" aria-label="Open full-size image">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>
+        </a>
+      </div>
+      <div class="viewer-media-wrap">
+        <button class="viewer-nav prev" id="viewer-prev" aria-label="Previous camera">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+        </button>
+        <div class="viewer-media" id="viewer-media"></div>
+        <button class="viewer-nav next" id="viewer-next" aria-label="Next camera">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div class="viewer-sheet">
+        <div class="viewer-head">
+          <div>
+            <h2 id="viewer-title">—</h2>
+            <p class="viewer-sub" id="viewer-sub"></p>
+          </div>
+          <span class="age-chip" id="viewer-age"><i class="led"></i><span>—</span></span>
+        </div>
+        <dl class="viewer-meta">
+          <div><dt>Captured</dt><dd id="viewer-time">—</dd></div>
+          <div><dt>Position</dt><dd id="viewer-pos">—</dd></div>
+          <div><dt>Frame</dt><dd id="viewer-res">—</dd></div>
+        </dl>
+        <button class="pill" id="viewer-map">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>
+          Show on map
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
