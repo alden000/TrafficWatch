@@ -75,7 +75,7 @@ const PLACES = [
   P('Jurong Island', 1.2660, 103.6990, 'West'),
 ];
 
-export const REGIONS = ['North', 'North-East', 'East', 'Central', 'West'];
+export const REGIONS = ['Johor', 'North', 'North-East', 'East', 'Central', 'West'];
 
 const cache = new Map();
 

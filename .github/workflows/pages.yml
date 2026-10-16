@@ -3,6 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Daily rebuild refreshes the Johor camera list: LLM's signed image links
+  # expire after 7 days.
+  schedule:
+    - cron: '17 20 * * *' # 04:17 SGT
   workflow_dispatch:
 
 permissions:
@@ -22,7 +26,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Fetch Johor camera list (LLM)
+        # If LLM is unreachable, keep the list from the live site (still valid
+        # for up to 7 days) rather than failing the deploy.
+        run: |
+          node scripts/fetch-llm.mjs llm-johor.json \
+            || curl -fsS "${{ steps.pages.outputs.base_url }}/llm-johor.json" -o llm-johor.json \
+            || echo "::warning::No Johor camera list this build"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

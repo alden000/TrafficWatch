@@ -75,6 +75,7 @@ export class Viewer {
     const srcImg = sourceEl?.querySelector?.('img:last-of-type');
     if (!(srcImg && srcImg.complete && this.fb.adopt(srcImg, srcImg.getAttribute('src')))) this.fb.clear();
     this.fb.set(cam.url, { animate: false });
+    this.feed.touch(id);
 
     this.root.hidden = false;
     this.root.classList.remove('shown');
@@ -157,6 +158,7 @@ export class Viewer {
       this.fb.clear();
       this._render(next);
       this.fb.set(next.url, { animate: false });
+      this.feed.touch(next.id);
       // Parallax: the incoming frame starts 40% of the way across, moving slower.
       this.media.style.transition = 'none';
       this.media.style.transform = `translateX(${dir > 0 ? 40 : -40}vw)`;
@@ -195,13 +197,14 @@ export class Viewer {
     this.id = cam.id;
     if (!quiet) {
       $('#viewer-title').innerHTML = `${cam.near ? '<span class="muted">Near</span> ' : ''}${escapeHtml(cam.name)}`;
-      $('#viewer-sub').textContent = `Camera ${cam.id} · ${cam.region}`;
-      $('#viewer-pos').textContent = `${cam.lat.toFixed(3)}, ${cam.lng.toFixed(3)}`;
+      $('#viewer-sub').textContent = `${cam.code} · ${cam.region} · ${cam.source}`;
+      $('#viewer-pos').textContent = `${cam.approx ? '≈ ' : ''}${cam.lat.toFixed(3)}, ${cam.lng.toFixed(3)}`;
+      $('#viewer-pos').title = cam.approx ? 'Approximate position, estimated from the KM marker' : '';
       const n = this.order.indexOf(cam.id);
       $('#viewer-count').textContent = n >= 0 ? `${n + 1} / ${this.order.length}` : '';
     }
     $('#viewer-res').textContent = `${cam.w}×${cam.h}`;
-    $('#viewer-raw').href = cam.url;
+    $('#viewer-raw').href = cam.link || cam.url || '#';
     const { state } = freshness(Date.now() - cam.ts);
     this.media.dataset.state = state;
     this.tick(Date.now());

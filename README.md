@@ -2,7 +2,9 @@
 
 A PWA that shows Singapore's live traffic cameras as picture-in-picture windows over an OpenStreetMap base map. It follows the system light/dark theme, and when a camera sends a new frame, its window plays a "shutter blink."
 
-Data: [LTA traffic images via data.gov.sg](https://data.gov.sg/datasets/d_6cdb6b405b25aaaacbaf7689bcc6fae0/view) (`https://api.data.gov.sg/v1/transport/traffic-images`).
+Data:
+- **Singapore:** [LTA traffic images via data.gov.sg](https://data.gov.sg/datasets/d_6cdb6b405b25aaaacbaf7689bcc6fae0/view) (`https://api.data.gov.sg/v1/transport/traffic-images`).
+- **Johor:** 9 highway cameras from [Lembaga Lebuhraya Malaysia](https://www.llm.gov.my/awam/cctv1): Second Link (E3), PLUS (E2: Skudai, Simpang Renggam, Pagoh) and Senai–Desaru (E22).
 
 **Read the creative brief first:** [`docs/CREATIVE_BRIEF.md`](docs/CREATIVE_BRIEF.md). It covers the concept, palette, motion system, components and the battery contract the code follows.
 
@@ -23,9 +25,17 @@ Data: [LTA traffic images via data.gov.sg](https://data.gov.sg/datasets/d_6cdb6b
 - Window placement runs once after a pan or zoom ends, never during the gesture.
 - No framework and no build step: plain ES modules plus Leaflet 1.9.4 (vendored).
 
+## Johor cameras (LLM)
+
+- LLM's camera list can't be read from a browser (no CORS), and its signed image links expire after 7 days. `scripts/fetch-llm.mjs` builds `llm-johor.json`, and the Pages workflow runs it on every deploy and **daily at 04:17 SGT**. If LLM is unreachable, the workflow keeps the list from the live site.
+- LLM gives no capture time. The app re-downloads each frame (every 60s on screen, every 3 min otherwise) and treats it as new only when the bytes change, so the freshness arc still means something.
+- LLM gives no coordinates either. Positions are hand-placed from OpenStreetMap; the ones estimated from KM markers are marked "≈" in the viewer and may be up to about 2 km off.
+- LLM's web page only lists 3 cameras per highway (its Tuju app has the full set).
+
 ## Run locally
 
 ```sh
+node scripts/fetch-llm.mjs   # optional: adds the Johor cameras
 npx http-server -p 8080 -c-1 .
 # open http://localhost:8080
 ```
@@ -41,7 +51,7 @@ It's a static site, so any static host works. `.github/workflows/pages.yml` depl
 - Camera names come from LTA DataMall's camera list (Annex G of the API guide). Any camera not on that list is labelled with the nearest well-known area (`js/places.js`).
 - Since 30 June 2026 the API returns only 8 cameras (Woodlands, Tuas, Sentosa); before that it returned about 90 expressway cameras. The app shows whatever the API returns.
 - Map tiles come from `tile.openstreetmap.org`, which is fine for personal or low traffic use under the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). For heavy public traffic, switch to a tile provider in `js/app.js`.
-- Attribution: traffic images © LTA via data.gov.sg (Singapore Open Data Licence). Map © OpenStreetMap contributors.
+- Attribution: traffic images © LTA via data.gov.sg (Singapore Open Data Licence); Johor highway images © Lembaga Lebuhraya Malaysia. Map © OpenStreetMap contributors.
 
 ## Structure
 
@@ -54,6 +64,8 @@ js/pip-layer.js       pins + PiP windows + collision placement
 js/frames.js          decode-then-blink frame swapping
 js/viewer.js          fullscreen FLIP viewer + gestures
 js/wall.js            control-room grid
-js/places.js          nearest-area naming
+js/llm.js             Johor (LLM) frames: change detection by hash
+js/places.js          official LTA names + nearest-area fallback
+scripts/fetch-llm.mjs builds llm-johor.json (run by the Pages workflow)
 sw.js                 offline caching
 ```
