@@ -112,7 +112,7 @@ export class CameraFeed extends EventTarget {
       const prev = this.cameras.get(id);
       const ts = Date.parse(c.timestamp) || Date.now();
       if (!prev) {
-        const place = placeFor(lat, lng);
+        const place = placeFor(id, lat, lng);
         this.cameras.set(id, {
           id, lat, lng, url: c.image, ts,
           w: c.image_metadata?.width || 1920,

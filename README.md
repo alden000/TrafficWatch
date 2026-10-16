@@ -38,7 +38,8 @@ It's a static site, so any static host works. `.github/workflows/pages.yml` depl
 
 ## Notes
 
-- The API only gives camera IDs and coordinates. Window names are the **nearest well-known area** (`js/places.js`), not official LTA camera names.
+- Camera names come from LTA DataMall's camera list (Annex G of the API guide). Any camera not on that list is labelled with the nearest well-known area (`js/places.js`).
+- Since 30 June 2026 the API returns only 8 cameras (Woodlands, Tuas, Sentosa); before that it returned about 90 expressway cameras. The app shows whatever the API returns.
 - Map tiles come from `tile.openstreetmap.org`, which is fine for personal or low traffic use under the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/). For heavy public traffic, switch to a tile provider in `js/app.js`.
 - Attribution: traffic images © LTA via data.gov.sg (Singapore Open Data Licence). Map © OpenStreetMap contributors.
 

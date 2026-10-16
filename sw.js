@@ -5,7 +5,7 @@
 //  - Camera images: not handled (cross-origin, no CORS, short-lived; the
 //    browser HTTP cache already covers them)
 
-const VERSION = 'tw-v1';
+const VERSION = 'tw-v2';
 const SHELL = `${VERSION}-shell`;
 const API = `${VERSION}-api`;
 const TILES = 'tw-tiles'; // survives app updates
