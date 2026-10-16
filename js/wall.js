@@ -16,7 +16,7 @@ class Tile {
     const meta = el('div', 'pip-meta', '<span class="pip-name"></span><span class="age-chip"><i class="led"></i><span></span></span>');
     this.chip = meta.lastElementChild;
     const name = meta.firstElementChild;
-    name.append(el('b'), el('span', 'tile-id', `CAM ${cam.id}`));
+    name.append(el('b'), el('span', 'tile-id', cam.code.toUpperCase()));
     name.firstChild.textContent = cam.name;
     this.root.append(this.fb.root, meta);
     this.root.addEventListener('click', () => onOpen(this.id, this.fb.root));
@@ -131,7 +131,7 @@ export class Wall {
       if (!t) continue;
       t.visible = e.isIntersecting;
       const cam = this.feed.cameras.get(t.id);
-      if (t.visible && cam) t.fb.set(cam.url, { animate: false });
+      if (t.visible && cam) { t.fb.set(cam.url, { animate: false }); this.feed.touch(cam.id); }
       else if (!t.visible) t.fb.clear();
     }
   }

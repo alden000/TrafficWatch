@@ -1,6 +1,18 @@
-// The API only gives camera IDs and coordinates. To give each window a human
-// name, we label it with the nearest well-known area (approximate centroids).
-// Names are "near X" areas, not official LTA camera names.
+// The API only gives camera IDs and coordinates. Cameras listed in LTA
+// DataMall's Annex G get their official location name; any other camera is
+// labelled with the nearest well-known area (approximate centroids).
+
+// LTA DataMall API User Guide v6.10 (1 Oct 2026), Annex G.
+const OFFICIAL = {
+  2701: ['Woodlands Causeway (Towards Johor)', 'North'],
+  2702: ['Woodlands Checkpoint', 'North'],
+  2704: ['BKE (Woodlands Checkpoint) – Woodlands F/O', 'North'],
+  4703: ['Tuas Second Link', 'West'],
+  4712: ['AYE (Tuas) – Tuas Ave 8 Exit', 'West'],
+  4713: ['Tuas Checkpoint', 'West'],
+  4798: ['Sentosa Tower 1', 'Central'],
+  4799: ['Sentosa Tower 2', 'Central'],
+};
 
 const P = (name, lat, lng, region) => ({ name, lat, lng, region });
 
@@ -63,12 +75,18 @@ const PLACES = [
   P('Jurong Island', 1.2660, 103.6990, 'West'),
 ];
 
-export const REGIONS = ['North', 'North-East', 'East', 'Central', 'West'];
+export const REGIONS = ['Johor', 'North', 'North-East', 'East', 'Central', 'West'];
 
 const cache = new Map();
 
-/** Nearest named area for a coordinate. */
-export function placeFor(lat, lng) {
+/** Official name for a camera, else the nearest named area. */
+export function placeFor(id, lat, lng) {
+  const official = OFFICIAL[id];
+  if (official) return { name: official[0], region: official[1], near: false };
+  return nearestPlace(lat, lng);
+}
+
+function nearestPlace(lat, lng) {
   const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
   let hit = cache.get(key);
   if (hit) return hit;

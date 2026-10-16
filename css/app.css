@@ -475,7 +475,7 @@ body.mode-wall .tile { animation: rise 460ms var(--ease-out) var(--d, 0ms) both;
 @keyframes rise { from { opacity: 0; transform: translateY(26px) scale(.97); } }
 .tile .pip-meta { padding: 22px 9px 7px; }
 .tile .pip-name { font-size: 11px; }
-.tile .pip-name { display: flex; flex-direction: column; min-width: 0; }
+.tile .pip-name { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .tile .pip-name b { font-weight: inherit; overflow: hidden; text-overflow: ellipsis; }
 .tile-id { opacity: .7; font-weight: 500; font-size: 9.5px; letter-spacing: .06em; }
 .wall-empty { text-align: center; color: var(--ink-2); margin-top: 20vh; padding: 0 24px; }
@@ -538,6 +538,7 @@ body.mode-wall .tile { animation: rise 460ms var(--ease-out) var(--d, 0ms) both;
 }
 #viewer.dragging .viewer-media { transition: none; }
 .viewer-media .fb { background: #0B0E13; }
+.viewer-media .fb img { object-fit: contain; } /* LLM frames are 4:3 */
 .viewer-nav {
   position: absolute; top: 50%;
   width: 44px; height: 44px; margin-top: -22px;

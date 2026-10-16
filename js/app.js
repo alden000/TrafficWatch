@@ -8,7 +8,9 @@ import { Viewer } from './viewer.js';
 
 const L = window.L;
 const SG_CENTER = [1.3521, 103.8198];
-const SG_BOUNDS = L.latLngBounds([1.13, 103.55], [1.50, 104.12]);
+// Coverage: Singapore plus the Johor highway cameras (Pagoh is the northernmost).
+const COVERAGE = L.latLngBounds([1.13, 102.6], [2.3, 104.4]);
+const CORE_LAT = 1.75; // first view: Singapore + JB, not out to Pagoh
 const TICK_MS = 15e3;
 
 // ---------------------------------------------------------------------------
@@ -17,9 +19,9 @@ const TICK_MS = 15e3;
 const map = L.map('map', {
   center: SG_CENTER,
   zoom: innerWidth < 600 ? 11 : 12,
-  minZoom: 10,
+  minZoom: 8,
   maxZoom: 18,
-  maxBounds: SG_BOUNDS.pad(0.15),
+  maxBounds: COVERAGE.pad(0.1),
   maxBoundsViscosity: 0.8,
   zoomControl: false,
   attributionControl: true,
@@ -32,7 +34,7 @@ const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   keepBuffer: 2,
   updateWhenIdle: true,
   crossOrigin: true,
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Images © LTA / data.gov.sg',
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Images © LTA / data.gov.sg · LLM',
 }).addTo(map);
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,9 @@ const viewer = new Viewer(feed, {
 const openViewer = (id, el) => { haptic(8); viewer.open(id, el); };
 const pips = new PipLayer(map, feed, { onOpen: openViewer, obstacles });
 const wall = new Wall($('#wall'), feed, { onOpen: openViewer });
+feed.isWatched = (id) =>
+  (viewer.isOpen && viewer.id === id) ||
+  (mode === 'wall' ? !!wall.tiles.get(id)?.visible : pips.pips.has(id));
 
 feed.addEventListener('data', (e) => {
   const d = e.detail;
@@ -79,7 +84,7 @@ feed.addEventListener('data', (e) => {
   renderHud();
   if (d.first) {
     firstData.resolve();
-    if (!userMoved) fitAll(false);
+    if (!userMoved) fitAll(false, true);
   } else if (mode === 'wall' && d.changed.size > 2) {
     toast(`${d.changed.size} cameras updated`);
   }
@@ -140,8 +145,9 @@ document.addEventListener('pointerdown', (e) => {
 // ---------------------------------------------------------------------------
 // Controls
 // ---------------------------------------------------------------------------
-function fitAll(animate = true) {
-  const cams = feed.list();
+function fitAll(animate = true, core = false) {
+  let cams = feed.list();
+  if (core && cams.some((c) => c.lat < CORE_LAT)) cams = cams.filter((c) => c.lat < CORE_LAT);
   if (!cams.length) return;
   const b = L.latLngBounds(cams.map((c) => [c.lat, c.lng]));
   const hud = $('.hud-capsule').getBoundingClientRect();
@@ -185,7 +191,7 @@ $('#ctl-locate').addEventListener('click', () => {
       btn.classList.remove('is-busy');
       btn.classList.add('is-on');
       const ll = [pos.coords.latitude, pos.coords.longitude];
-      if (!SG_BOUNDS.contains(ll)) { toast("You're outside Singapore"); return; }
+      if (!COVERAGE.contains(ll)) { toast("You're outside the covered area"); return; }
       youCircle?.remove();
       youMarker?.remove();
       youCircle = L.circle(ll, { radius: pos.coords.accuracy, stroke: false, fillColor: getComputedStyle(document.documentElement).getPropertyValue('--accent-2').trim(), fillOpacity: 0.12, interactive: false }).addTo(map);

@@ -305,6 +305,7 @@ export class PipLayer {
         this.pane.append(pip.root);
         pip.tick(cam, Date.now());
         pip.fb.set(cam.url, { animate: false });
+        this.feed.touch(cam.id);
       }
       pip.place(
         { x: r.x + origin.x, y: r.y + origin.y, w: r.w, h: r.h },

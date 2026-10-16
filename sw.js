@@ -2,10 +2,11 @@
 //  - App shell: precached, served stale-while-revalidate (fast + self-updating)
 //  - API JSON: network-first (6s timeout), last good response when offline
 //  - OSM tiles: stale-while-revalidate, capped at 600 tiles
+//  - llm-johor.json (Johor camera list): network-first, like the API
 //  - Camera images: not handled (cross-origin, no CORS, short-lived; the
 //    browser HTTP cache already covers them)
 
-const VERSION = 'tw-v1';
+const VERSION = 'tw-v2';
 const SHELL = `${VERSION}-shell`;
 const API = `${VERSION}-api`;
 const TILES = 'tw-tiles'; // survives app updates
@@ -23,6 +24,7 @@ const SHELL_FILES = [
   'js/pip-layer.js',
   'js/wall.js',
   'js/viewer.js',
+  'js/llm.js',
   'vendor/leaflet/leaflet.js',
   'vendor/leaflet/leaflet.css',
   'manifest.webmanifest',
@@ -49,7 +51,9 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
 
   if (url.hostname === 'api.data.gov.sg' && url.pathname.includes('traffic-images')) {
-    e.respondWith(apiNetworkFirst(req));
+    e.respondWith(apiNetworkFirst(req, 'latest'));
+  } else if (url.origin === self.location.origin && url.pathname.endsWith('/llm-johor.json')) {
+    e.respondWith(apiNetworkFirst(req, 'llm'));
   } else if (url.hostname === 'tile.openstreetmap.org') {
     e.respondWith(tileSWR(req, e));
   } else if (url.origin === self.location.origin) {
@@ -57,14 +61,14 @@ self.addEventListener('fetch', (e) => {
   }
 });
 
-async function apiNetworkFirst(req) {
+async function apiNetworkFirst(req, key) {
   const cache = await caches.open(API);
   try {
     const res = await fetchWithTimeout(req, 6000);
-    if (res.ok) await cache.put('latest', res.clone());
+    if (res.ok) await cache.put(key, res.clone());
     return res;
   } catch (err) {
-    const hit = await cache.match('latest');
+    const hit = await cache.match(key);
     if (!hit) throw err;
     // Tell the page this is an offline copy.
     const headers = new Headers(hit.headers);
